@@ -1,0 +1,15 @@
+pypdf==5.4.0
+gradio==5.27.1
+faiss-cpu==1.11.0
+numpy==1.26.0
+langchain==0.3.21
+langchain-community==0.3.21
+cohere==5.11.4
+tqdm==4.67.1
+python-dotenv==1.0.1
+sentence-transformers==2.2.2
+transformers==4.35.2
+torch==2.1.0
+# Tkinter is included with Python standard library
+# Additional dependencies for enhanced functionality
+pathlib2==2.3.7; python_version < "3.4"
