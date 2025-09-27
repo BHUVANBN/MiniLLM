@@ -17,6 +17,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from universal_chatbot import UniversalChatbot
+from voice_chat import VoiceChat
 
 class ChatGPTUI:
     def __init__(self):
@@ -25,8 +26,16 @@ class ChatGPTUI:
         self.chat_mode = "general"  # "general" or "pdf"
         self.current_pdf = None
         
+        # Initialize voice chat
+        self.voice_chat = VoiceChat()
+        self.voice_enabled = False
+        
         self.setup_window()
         self.create_widgets()
+        
+        # Setup voice chat callbacks
+        if self.voice_chat.is_available():
+            self.setup_voice_callbacks()
         
         # Initialize chatbot in background
         threading.Thread(target=self.initialize_chatbot, daemon=True).start()
@@ -185,6 +194,83 @@ class ChatGPTUI:
         )
         self.pdf_status.pack(fill='x')
         
+        # Voice Chat section
+        if self.voice_chat.is_available():
+            voice_label = tk.Label(
+                sidebar_content,
+                text="Voice Chat",
+                bg=self.colors['sidebar'],
+                fg=self.colors['text_dim'],
+                font=('Segoe UI', 10),
+                anchor='w'
+            )
+            voice_label.pack(fill='x', pady=(16, 8))
+            
+            # Voice toggle
+            self.voice_toggle_btn = tk.Button(
+                sidebar_content,
+                text="🎤 Enable Voice",
+                bg=self.colors['input_bg'],
+                fg=self.colors['text'],
+                font=('Segoe UI', 10),
+                relief='flat',
+                bd=0,
+                padx=12,
+                pady=8,
+                cursor='hand2',
+                command=self.toggle_voice_chat
+            )
+            self.voice_toggle_btn.pack(fill='x', pady=(0, 8))
+            
+            # Voice controls frame
+            self.voice_controls = tk.Frame(sidebar_content, bg=self.colors['sidebar'])
+            self.voice_controls.pack(fill='x', pady=(0, 8))
+            
+            # Listen button
+            self.listen_btn = tk.Button(
+                self.voice_controls,
+                text="🎙️ Listen",
+                bg=self.colors['input_bg'],
+                fg=self.colors['text'],
+                font=('Segoe UI', 9),
+                relief='flat',
+                bd=0,
+                padx=8,
+                pady=6,
+                cursor='hand2',
+                command=self.start_voice_input,
+                state='disabled'
+            )
+            self.listen_btn.pack(side='left', padx=(0, 4))
+            
+            # Stop button
+            self.stop_btn = tk.Button(
+                self.voice_controls,
+                text="⏹️ Stop",
+                bg=self.colors['input_bg'],
+                fg=self.colors['text'],
+                font=('Segoe UI', 9),
+                relief='flat',
+                bd=0,
+                padx=8,
+                pady=6,
+                cursor='hand2',
+                command=self.stop_voice,
+                state='disabled'
+            )
+            self.stop_btn.pack(side='left')
+            
+            # Voice status
+            self.voice_status = tk.Label(
+                sidebar_content,
+                text="Voice chat disabled",
+                bg=self.colors['sidebar'],
+                fg=self.colors['text_dim'],
+                font=('Segoe UI', 8),
+                anchor='w'
+            )
+            self.voice_status.pack(fill='x', pady=(0, 8))
+        
         # Status at bottom
         status_container = tk.Frame(sidebar_content, bg=self.colors['sidebar'])
         status_container.pack(side='bottom', fill='x', pady=(20, 0))
@@ -314,6 +400,22 @@ class ChatGPTUI:
             width=70
         )
         self.message_entry.pack(side='left', fill='both')
+        
+        # Voice chat button (if available)
+        if self.voice_chat.is_available():
+            self.voice_btn = tk.Button(
+                input_frame,
+                text="🎤",
+                bg='#03dac6',  # Teal color
+                fg='white',
+                font=('Segoe UI', 12, 'bold'),
+                relief='flat',
+                bd=0,
+                width=3,
+                cursor='hand2',
+                command=self.toggle_voice_input
+            )
+            self.voice_btn.pack(side='right', padx=(4, 4), pady=8)
         
         # Send button
         self.send_btn = tk.Button(
@@ -622,12 +724,147 @@ How can I assist you today?"""
                 self.root.after(0, lambda: self.add_message("assistant", response))
                 self.root.after(0, lambda: self.status_label.configure(text="Ready"))
                 
+                # Speak the response if voice is enabled
+                if self.voice_enabled and self.voice_chat.is_available():
+                    self.voice_chat.speak(response)
+                
             except Exception as e:
                 error_msg = f"Sorry, I encountered an error: {str(e)}"
                 self.root.after(0, lambda: self.add_message("assistant", error_msg))
                 self.root.after(0, lambda: self.status_label.configure(text="Error"))
+                
+                # Speak error message if voice is enabled
+                if self.voice_enabled and self.voice_chat.is_available():
+                    self.voice_chat.speak(error_msg)
         
         threading.Thread(target=get_response, daemon=True).start()
+    
+    def setup_voice_callbacks(self):
+        """Setup voice chat event callbacks."""
+        self.voice_chat.set_callbacks(
+            on_speech_recognized=self.on_speech_recognized,
+            on_listening_start=self.on_listening_start,
+            on_listening_stop=self.on_listening_stop,
+            on_speaking_start=self.on_speaking_start,
+            on_speaking_stop=self.on_speaking_stop,
+            on_error=self.on_voice_error
+        )
+    
+    def toggle_voice_chat(self):
+        """Toggle voice chat on/off."""
+        if not self.voice_chat.is_available():
+            messagebox.showerror("Voice Chat", "Voice chat is not available. Please install required dependencies.")
+            return
+        
+        self.voice_enabled = not self.voice_enabled
+        
+        if self.voice_enabled:
+            self.voice_toggle_btn.configure(text="🔇 Disable Voice")
+            self.listen_btn.configure(state='normal')
+            self.stop_btn.configure(state='normal')
+            self.voice_status.configure(text="Voice chat enabled")
+            # Update main voice button if it exists
+            if hasattr(self, 'voice_btn'):
+                self.voice_btn.configure(bg='#03dac6')
+        else:
+            self.voice_toggle_btn.configure(text="🎤 Enable Voice")
+            self.listen_btn.configure(state='disabled')
+            self.stop_btn.configure(state='disabled')
+            self.voice_status.configure(text="Voice chat disabled")
+            # Update main voice button if it exists
+            if hasattr(self, 'voice_btn'):
+                self.voice_btn.configure(bg='#555555')
+            # Stop any ongoing voice operations
+            self.voice_chat.stop_listening()
+            self.voice_chat.stop_speaking()
+    
+    def toggle_voice_input(self):
+        """Toggle voice input - main voice button functionality."""
+        if not self.voice_chat.is_available():
+            messagebox.showinfo("Voice Chat", "Voice chat is not available.\n\nPlease install dependencies:\nsudo apt-get install python3-pyaudio\npip install speechrecognition pyttsx3")
+            return
+        
+        # Auto-enable voice chat if not enabled
+        if not self.voice_enabled:
+            self.voice_enabled = True
+            if hasattr(self, 'voice_toggle_btn'):
+                self.voice_toggle_btn.configure(text="🔇 Disable Voice")
+                self.listen_btn.configure(state='normal')
+                self.stop_btn.configure(state='normal')
+                self.voice_status.configure(text="Voice chat enabled")
+        
+        # Toggle listening state
+        if self.voice_chat.is_listening():
+            self.stop_voice()
+        else:
+            self.start_voice_input()
+    
+    def start_voice_input(self):
+        """Start listening for voice input."""
+        if not self.voice_enabled:
+            return
+        
+        if self.voice_chat.is_listening():
+            return
+        
+        # Stop any ongoing speech
+        self.voice_chat.stop_speaking()
+        
+        # Start listening
+        success = self.voice_chat.start_listening()
+        if not success:
+            self.voice_status.configure(text="Failed to start listening")
+    
+    def stop_voice(self):
+        """Stop all voice operations."""
+        self.voice_chat.stop_listening()
+        self.voice_chat.stop_speaking()
+    
+    def on_speech_recognized(self, text):
+        """Handle recognized speech."""
+        # Add the recognized text to the input field
+        self.message_entry.delete("1.0", "end")
+        self.message_entry.insert("1.0", text)
+        
+        # Automatically send the message
+        self.send_message()
+    
+    def on_listening_start(self):
+        """Handle listening start event."""
+        self.root.after(0, lambda: self.voice_status.configure(text="🎙️ Listening..."))
+        if hasattr(self, 'listen_btn'):
+            self.root.after(0, lambda: self.listen_btn.configure(text="🎙️ Listening...", state='disabled'))
+        if hasattr(self, 'voice_btn'):
+            self.root.after(0, lambda: self.voice_btn.configure(text="🔴", bg='#2196f3'))
+    
+    def on_listening_stop(self):
+        """Handle listening stop event."""
+        self.root.after(0, lambda: self.voice_status.configure(text="Processing speech..."))
+        if hasattr(self, 'listen_btn'):
+            self.root.after(0, lambda: self.listen_btn.configure(text="🎙️ Listen", state='normal'))
+        if hasattr(self, 'voice_btn'):
+            self.root.after(0, lambda: self.voice_btn.configure(text="🎤", bg='#03dac6'))
+    
+    def on_speaking_start(self):
+        """Handle speaking start event."""
+        self.root.after(0, lambda: self.voice_status.configure(text="🔊 Speaking..."))
+        if hasattr(self, 'stop_btn'):
+            self.root.after(0, lambda: self.stop_btn.configure(text="⏹️ Stop Speaking"))
+        if hasattr(self, 'voice_btn'):
+            self.root.after(0, lambda: self.voice_btn.configure(text="🔊", bg='#4caf50'))
+    
+    def on_speaking_stop(self):
+        """Handle speaking stop event."""
+        self.root.after(0, lambda: self.voice_status.configure(text="Voice chat ready"))
+        if hasattr(self, 'stop_btn'):
+            self.root.after(0, lambda: self.stop_btn.configure(text="⏹️ Stop"))
+        if hasattr(self, 'voice_btn'):
+            self.root.after(0, lambda: self.voice_btn.configure(text="🎤", bg='#03dac6'))
+    
+    def on_voice_error(self, error_message):
+        """Handle voice chat errors."""
+        self.root.after(0, lambda: self.voice_status.configure(text=f"Error: {error_message}"))
+        self.root.after(0, lambda: self.listen_btn.configure(text="🎙️ Listen", state='normal'))
     
     def initialize_chatbot(self):
         """Initialize chatbot in background."""

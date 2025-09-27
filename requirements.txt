@@ -10,6 +10,10 @@ python-dotenv==1.0.1
 sentence-transformers==2.2.2
 transformers==4.35.2
 torch==2.1.0
+# Voice chat dependencies
+speechrecognition==3.14.3
+pyttsx3==2.99
+# pyaudio - install via system package: sudo apt-get install python3-pyaudio
 # Tkinter is included with Python standard library
 # Additional dependencies for enhanced functionality
 pathlib2==2.3.7; python_version < "3.4"
