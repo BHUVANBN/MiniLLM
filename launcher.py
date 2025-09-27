@@ -52,11 +52,11 @@ def launch_gui():
     """Launch the Tkinter GUI application."""
     try:
         print("🚀 Launching GUI application...")
-        from pdf_chat_gui import main as gui_main
+        from chatgpt_ui import main as gui_main
         gui_main()
     except ImportError as e:
         print(f"❌ Error importing GUI: {e}")
-        print("Make sure pdf_chat_gui.py is in the same directory")
+        print("Make sure chatgpt_ui.py is in the same directory")
     except Exception as e:
         print(f"❌ Error launching GUI: {e}")
 
@@ -75,14 +75,15 @@ def launch_cli():
 
 
 def launch_web():
-    """Launch the original Gradio web application."""
+    """Launch the Gradio web application."""
     try:
         print("🚀 Launching web application...")
-        from bns_chatbot import main as web_main
+        from web_app import main as web_main
         web_main()
     except ImportError as e:
         print(f"❌ Error importing web app: {e}")
-        print("Make sure bns_chatbot.py is in the same directory")
+        print("Make sure web_app.py is in the same directory")
+        print("📦 Install Gradio with: pip install gradio")
     except Exception as e:
         print(f"❌ Error launching web app: {e}")
 
@@ -93,7 +94,7 @@ def main():
     os.system('cls' if os.name == 'nt' else 'clear')
     
     # Check if we're in the right directory
-    required_files = ['universal_chatbot.py', 'pdf_chat_gui.py', 'chat_cli.py']
+    required_files = ['universal_chatbot.py', 'chatgpt_ui.py', 'chat_cli.py']
     missing_files = [f for f in required_files if not Path(f).exists()]
     
     if missing_files:

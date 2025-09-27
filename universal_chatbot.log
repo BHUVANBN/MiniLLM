@@ -128,3 +128,112 @@
 2025-09-28 00:21:14,458 - INFO - Universal Chatbot initialized
 2025-09-28 00:21:14,586 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
 2025-09-28 00:21:14,587 - INFO - API keys setup successfully
+2025-09-28 00:24:34,029 - INFO - Universal Chatbot initialized
+2025-09-28 00:24:34,146 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:24:34,147 - INFO - API keys setup successfully
+2025-09-28 00:27:55,538 - INFO - Universal Chatbot initialized
+2025-09-28 00:27:55,658 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:27:55,658 - INFO - API keys setup successfully
+2025-09-28 00:28:18,827 - INFO - Loading PDF: /media/batman/os/Users/BHUVAN B N/MiniLLM/BIS703-module-1-textbook.pdf
+2025-09-28 00:28:19,349 - INFO - Successfully loaded 31 pages from PDF
+2025-09-28 00:28:19,349 - INFO - Creating text chunks...
+2025-09-28 00:28:19,351 - INFO - Created 87 text chunks
+2025-09-28 00:28:19,351 - INFO - Creating vector database from 87 text chunks...
+2025-09-28 00:28:19,351 - INFO - Using 87 valid chunks for vector database...
+2025-09-28 00:28:19,351 - INFO - Testing embedding function...
+2025-09-28 00:28:20,685 - ERROR - Embedding function test failed: 0
+2025-09-28 00:28:20,686 - INFO - Switching to local embedding fallback...
+2025-09-28 00:28:26,870 - INFO - Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:28:41,411 - INFO - Local embedding function initialized successfully
+2025-09-28 00:28:41,423 - INFO - Local embedding test successful, dimension: 384
+2025-09-28 00:28:41,423 - INFO - Creating FAISS vector database...
+2025-09-28 00:28:43,102 - INFO - Loading faiss with AVX2 support.
+2025-09-28 00:28:43,122 - INFO - Successfully loaded faiss with AVX2 support.
+2025-09-28 00:28:43,129 - INFO - Failed to load GPU Faiss: name 'GpuIndexIVFFlat' is not defined. Will not load constructor refs for GPU indexes. This is only an error if you're trying to use GPU Faiss.
+2025-09-28 00:28:43,132 - INFO - Vector database created successfully with 87 documents
+2025-09-28 00:32:06,850 - INFO - Universal Chatbot initialized
+2025-09-28 00:32:06,973 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:32:06,974 - INFO - API keys setup successfully
+2025-09-28 00:32:23,326 - INFO - Loading PDF: /media/batman/os/Users/BHUVAN B N/MiniLLM/BIS703-module-1-textbook.pdf
+2025-09-28 00:32:23,837 - INFO - Successfully loaded 31 pages from PDF
+2025-09-28 00:32:23,837 - INFO - Creating text chunks...
+2025-09-28 00:32:23,839 - INFO - Created 87 text chunks
+2025-09-28 00:32:23,839 - INFO - Creating vector database from 87 text chunks...
+2025-09-28 00:32:23,839 - INFO - Using 87 valid chunks for vector database...
+2025-09-28 00:32:23,840 - INFO - Testing embedding function...
+2025-09-28 00:32:24,620 - ERROR - Embedding function test failed: 0
+2025-09-28 00:32:24,620 - INFO - Switching to local embedding fallback...
+2025-09-28 00:32:30,786 - INFO - Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:32:41,653 - INFO - Local embedding function initialized successfully
+2025-09-28 00:32:41,663 - INFO - Local embedding test successful, dimension: 384
+2025-09-28 00:32:41,663 - INFO - Creating FAISS vector database...
+2025-09-28 00:32:43,260 - INFO - Loading faiss with AVX2 support.
+2025-09-28 00:32:43,279 - INFO - Successfully loaded faiss with AVX2 support.
+2025-09-28 00:32:43,289 - INFO - Failed to load GPU Faiss: name 'GpuIndexIVFFlat' is not defined. Will not load constructor refs for GPU indexes. This is only an error if you're trying to use GPU Faiss.
+2025-09-28 00:32:43,291 - INFO - Vector database created successfully with 87 documents
+2025-09-28 00:35:29,669 - INFO - Loading PDF: /media/batman/os/Users/BHUVAN B N/MiniLLM/BIS703-module-1-textbook.pdf
+2025-09-28 00:35:30,118 - INFO - Successfully loaded 31 pages from PDF
+2025-09-28 00:35:30,118 - INFO - Creating text chunks...
+2025-09-28 00:35:30,119 - INFO - Created 87 text chunks
+2025-09-28 00:35:30,120 - INFO - Creating vector database from 87 text chunks...
+2025-09-28 00:35:30,120 - INFO - Using 87 valid chunks for vector database...
+2025-09-28 00:35:30,120 - INFO - Testing embedding function...
+2025-09-28 00:35:30,126 - INFO - Embedding test successful, dimension: 384
+2025-09-28 00:35:30,126 - INFO - Creating FAISS vector database...
+2025-09-28 00:35:31,737 - INFO - Vector database created successfully with 87 documents
+2025-09-28 00:46:28,310 - INFO - Universal Chatbot initialized
+2025-09-28 00:46:28,412 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:46:28,412 - INFO - API keys setup successfully
+2025-09-28 00:47:03,150 - INFO - Universal Chatbot initialized
+2025-09-28 00:47:03,212 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:47:03,212 - INFO - API keys setup successfully
+2025-09-28 00:50:29,657 - INFO - Universal Chatbot initialized
+2025-09-28 00:50:29,778 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:50:29,778 - INFO - API keys setup successfully
+2025-09-28 00:50:48,685 - INFO - Universal Chatbot initialized
+2025-09-28 00:50:48,805 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:50:48,805 - INFO - API keys setup successfully
+2025-09-28 00:51:04,939 - INFO - Universal Chatbot initialized
+2025-09-28 00:51:05,058 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:51:05,058 - INFO - API keys setup successfully
+2025-09-28 00:52:33,401 - INFO - Universal Chatbot initialized
+2025-09-28 00:52:33,532 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:52:33,532 - INFO - API keys setup successfully
+2025-09-28 00:52:44,645 - INFO - Universal Chatbot initialized
+2025-09-28 00:52:44,709 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:52:44,709 - INFO - API keys setup successfully
+2025-09-28 00:53:00,085 - INFO - Universal Chatbot initialized
+2025-09-28 00:53:00,093 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:53:00,093 - INFO - API keys setup successfully
+2025-09-28 00:56:51,396 - INFO - Universal Chatbot initialized
+2025-09-28 00:56:51,458 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:56:51,458 - INFO - API keys setup successfully
+2025-09-28 00:58:50,608 - INFO - Universal Chatbot initialized
+2025-09-28 00:58:50,724 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:58:50,724 - INFO - API keys setup successfully
+2025-09-28 00:59:04,394 - INFO - Loading PDF: /media/batman/os/Users/BHUVAN B N/MiniLLM/BIS703-module-1-textbook.pdf
+2025-09-28 00:59:04,873 - INFO - Successfully loaded 31 pages from PDF
+2025-09-28 00:59:04,874 - INFO - Creating text chunks...
+2025-09-28 00:59:04,875 - INFO - Created 87 text chunks
+2025-09-28 00:59:04,875 - INFO - Creating vector database from 87 text chunks...
+2025-09-28 00:59:04,875 - INFO - Using 87 valid chunks for vector database...
+2025-09-28 00:59:04,876 - INFO - Testing embedding function...
+2025-09-28 00:59:07,494 - ERROR - Embedding function test failed: 0
+2025-09-28 00:59:07,495 - INFO - Switching to local embedding fallback...
+2025-09-28 00:59:13,110 - INFO - Load pretrained SentenceTransformer: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 00:59:27,934 - INFO - Local embedding function initialized successfully
+2025-09-28 00:59:27,946 - INFO - Local embedding test successful, dimension: 384
+2025-09-28 00:59:27,946 - INFO - Creating FAISS vector database...
+2025-09-28 00:59:29,658 - INFO - Vector database created successfully with 87 documents
+2025-09-28 01:01:07,763 - INFO - Universal Chatbot initialized
+2025-09-28 01:01:07,836 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 01:01:07,837 - INFO - API keys setup successfully
+2025-09-28 01:01:19,511 - INFO - Universal Chatbot initialized
+2025-09-28 01:01:19,519 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 01:01:19,519 - INFO - API keys setup successfully
+2025-09-28 01:02:27,949 - INFO - Universal Chatbot initialized
+2025-09-28 01:02:27,957 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 01:02:27,957 - INFO - API keys setup successfully
+2025-09-28 01:06:00,467 - INFO - Universal Chatbot initialized
+2025-09-28 01:06:00,586 - INFO - Embedding function initialized with model: sentence-transformers/all-MiniLM-l6-v2
+2025-09-28 01:06:00,587 - INFO - API keys setup successfully
