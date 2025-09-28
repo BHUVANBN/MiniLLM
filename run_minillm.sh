@@ -36,9 +36,12 @@ datasets>=2.0.0
 accelerate>=0.20.0
 bitsandbytes>=0.41.0
 PyPDF2>=3.0.0
-tkinter
 numpy>=1.21.0
 scikit-learn>=1.0.0
+cohere>=5.0.0
+openai>=1.0.0
+huggingface-hub>=0.16.0
+python-dotenv>=1.0.0
 EOF
 fi
 
@@ -258,9 +261,165 @@ if [ ! -f "LLMmodel/pdf_llm_trainer.py" ]; then
     cp LLMmodel/pdf_llm_trainer.py LLMmodel/pdf_llm_trainer_backup.py 2>/dev/null || true
 fi
 
+# API Key Collection and Verification
+echo "🔑 API Key Setup"
+echo "==============="
+echo "This application supports optional API integrations for enhanced features."
+echo
+
+# Create .env file for API keys
+ENV_FILE=".env"
+if [ ! -f "$ENV_FILE" ]; then
+    echo "# API Keys for MiniLLM Project" > $ENV_FILE
+    echo "# Generated on $(date)" >> $ENV_FILE
+    echo "" >> $ENV_FILE
+fi
+
+# Function to verify Cohere API key
+verify_cohere_key() {
+    local api_key=$1
+    echo "🔍 Verifying Cohere API key..."
+    
+    # Test API key with a simple request
+    python3 -c "
+import cohere
+import sys
+try:
+    co = cohere.Client('$api_key')
+    response = co.generate(
+        model='command-light',
+        prompt='Hello',
+        max_tokens=5
+    )
+    print('✅ Cohere API key verified successfully!')
+    sys.exit(0)
+except Exception as e:
+    print('❌ Cohere API key verification failed:', str(e))
+    sys.exit(1)
+" 2>/dev/null
+    
+    return $?
+}
+
+# Collect Cohere API Key
+echo "📡 Cohere API Integration (Optional)"
+echo "Cohere provides advanced language model capabilities."
+echo "Get your free API key from: https://dashboard.cohere.ai/api-keys"
+echo
+read -p "Enter your Cohere API key (or press Enter to skip): " cohere_key
+
+if [ ! -z "$cohere_key" ]; then
+    if verify_cohere_key "$cohere_key"; then
+        echo "COHERE_API_KEY=$cohere_key" >> $ENV_FILE
+        echo "✅ Cohere API key saved successfully!"
+    else
+        echo "⚠️  Invalid Cohere API key. Continuing without Cohere integration."
+        echo "You can add it later by editing the .env file."
+    fi
+else
+    echo "⏭️  Skipping Cohere API setup."
+fi
+
+echo
+
+# Function to verify OpenAI API key (if needed)
+verify_openai_key() {
+    local api_key=$1
+    echo "🔍 Verifying OpenAI API key..."
+    
+    python3 -c "
+import openai
+import sys
+try:
+    openai.api_key = '$api_key'
+    response = openai.Model.list()
+    print('✅ OpenAI API key verified successfully!')
+    sys.exit(0)
+except Exception as e:
+    print('❌ OpenAI API key verification failed:', str(e))
+    sys.exit(1)
+" 2>/dev/null
+    
+    return $?
+}
+
+# Collect OpenAI API Key (Optional)
+echo "🤖 OpenAI API Integration (Optional)"
+echo "OpenAI provides GPT models for enhanced capabilities."
+echo "Get your API key from: https://platform.openai.com/api-keys"
+echo
+read -p "Enter your OpenAI API key (or press Enter to skip): " openai_key
+
+if [ ! -z "$openai_key" ]; then
+    # Check if openai package is available
+    python3 -c "import openai" 2>/dev/null
+    if [ $? -eq 0 ]; then
+        if verify_openai_key "$openai_key"; then
+            echo "OPENAI_API_KEY=$openai_key" >> $ENV_FILE
+            echo "✅ OpenAI API key saved successfully!"
+        else
+            echo "⚠️  Invalid OpenAI API key. Continuing without OpenAI integration."
+        fi
+    else
+        echo "OPENAI_API_KEY=$openai_key" >> $ENV_FILE
+        echo "⚠️  OpenAI package not installed. API key saved for future use."
+    fi
+else
+    echo "⏭️  Skipping OpenAI API setup."
+fi
+
+echo
+
+# Collect Hugging Face Token (Optional)
+echo "🤗 Hugging Face Hub Integration (Optional)"
+echo "Hugging Face provides access to thousands of pre-trained models."
+echo "Get your token from: https://huggingface.co/settings/tokens"
+echo
+read -p "Enter your Hugging Face token (or press Enter to skip): " hf_token
+
+if [ ! -z "$hf_token" ]; then
+    echo "HUGGINGFACE_HUB_TOKEN=$hf_token" >> $ENV_FILE
+    echo "✅ Hugging Face token saved successfully!"
+    
+    # Set environment variable for current session
+    export HUGGINGFACE_HUB_TOKEN=$hf_token
+else
+    echo "⏭️  Skipping Hugging Face setup."
+fi
+
+echo
+
+# Summary of API setup
+echo "📋 API Setup Summary"
+echo "==================="
+if [ -f "$ENV_FILE" ] && [ -s "$ENV_FILE" ]; then
+    echo "✅ API keys saved to .env file"
+    echo "📁 Location: $(pwd)/.env"
+    echo "🔒 Keep this file secure and don't share it publicly!"
+    echo
+    echo "Configured APIs:"
+    if grep -q "COHERE_API_KEY" $ENV_FILE; then
+        echo "  ✅ Cohere API - Enhanced language generation"
+    fi
+    if grep -q "OPENAI_API_KEY" $ENV_FILE; then
+        echo "  ✅ OpenAI API - GPT model access"
+    fi
+    if grep -q "HUGGINGFACE_HUB_TOKEN" $ENV_FILE; then
+        echo "  ✅ Hugging Face Hub - Model repository access"
+    fi
+else
+    echo "⏭️  No API keys configured. Using offline-only features."
+fi
+
+echo
 echo "✅ Setup complete!"
 echo "🚀 Starting PDF LLM Trainer..."
 echo
+
+# Load environment variables
+if [ -f "$ENV_FILE" ]; then
+    export $(cat $ENV_FILE | grep -v '^#' | xargs)
+fi
 
 # Change to LLMmodel directory and run
 cd LLMmodel

@@ -40,6 +40,10 @@ if not exist "requirements.txt" (
         echo PyPDF2^>=3.0.0
         echo numpy^>=1.21.0
         echo scikit-learn^>=1.0.0
+        echo cohere^>=5.0.0
+        echo openai^>=1.0.0
+        echo huggingface-hub^>=0.16.0
+        echo python-dotenv^>=1.0.0
     ) > requirements.txt
 )
 
@@ -253,9 +257,113 @@ if not exist "LLMmodel\model.py" (
     ) > LLMmodel\model.py
 )
 
+REM API Key Collection and Verification
+echo 🔑 API Key Setup
+echo ===============
+echo This application supports optional API integrations for enhanced features.
+echo.
+
+REM Create .env file for API keys
+set ENV_FILE=.env
+if not exist "%ENV_FILE%" (
+    echo # API Keys for MiniLLM Project > %ENV_FILE%
+    echo # Generated on %date% %time% >> %ENV_FILE%
+    echo. >> %ENV_FILE%
+)
+
+REM Collect Cohere API Key
+echo 📡 Cohere API Integration ^(Optional^)
+echo Cohere provides advanced language model capabilities.
+echo Get your free API key from: https://dashboard.cohere.ai/api-keys
+echo.
+set /p cohere_key="Enter your Cohere API key (or press Enter to skip): "
+
+if not "%cohere_key%"=="" (
+    echo 🔍 Verifying Cohere API key...
+    python -c "import cohere; co = cohere.Client('%cohere_key%'); co.generate(model='command-light', prompt='Hello', max_tokens=5); print('✅ Cohere API key verified successfully!')" 2>nul
+    if %errorlevel% equ 0 (
+        echo COHERE_API_KEY=%cohere_key% >> %ENV_FILE%
+        echo ✅ Cohere API key saved successfully!
+    ) else (
+        echo ⚠️  Invalid Cohere API key. Continuing without Cohere integration.
+        echo You can add it later by editing the .env file.
+    )
+) else (
+    echo ⏭️  Skipping Cohere API setup.
+)
+
+echo.
+
+REM Collect OpenAI API Key
+echo 🤖 OpenAI API Integration ^(Optional^)
+echo OpenAI provides GPT models for enhanced capabilities.
+echo Get your API key from: https://platform.openai.com/api-keys
+echo.
+set /p openai_key="Enter your OpenAI API key (or press Enter to skip): "
+
+if not "%openai_key%"=="" (
+    echo 🔍 Verifying OpenAI API key...
+    python -c "import openai; openai.api_key='%openai_key%'; openai.Model.list(); print('✅ OpenAI API key verified successfully!')" 2>nul
+    if %errorlevel% equ 0 (
+        echo OPENAI_API_KEY=%openai_key% >> %ENV_FILE%
+        echo ✅ OpenAI API key saved successfully!
+    ) else (
+        echo OPENAI_API_KEY=%openai_key% >> %ENV_FILE%
+        echo ⚠️  OpenAI package not available or invalid key. API key saved for future use.
+    )
+) else (
+    echo ⏭️  Skipping OpenAI API setup.
+)
+
+echo.
+
+REM Collect Hugging Face Token
+echo 🤗 Hugging Face Hub Integration ^(Optional^)
+echo Hugging Face provides access to thousands of pre-trained models.
+echo Get your token from: https://huggingface.co/settings/tokens
+echo.
+set /p hf_token="Enter your Hugging Face token (or press Enter to skip): "
+
+if not "%hf_token%"=="" (
+    echo HUGGINGFACE_HUB_TOKEN=%hf_token% >> %ENV_FILE%
+    echo ✅ Hugging Face token saved successfully!
+    set HUGGINGFACE_HUB_TOKEN=%hf_token%
+) else (
+    echo ⏭️  Skipping Hugging Face setup.
+)
+
+echo.
+
+REM Summary of API setup
+echo 📋 API Setup Summary
+echo ===================
+if exist "%ENV_FILE%" (
+    echo ✅ API keys saved to .env file
+    echo 📁 Location: %cd%\.env
+    echo 🔒 Keep this file secure and don't share it publicly!
+    echo.
+    echo Configured APIs:
+    findstr /C:"COHERE_API_KEY" %ENV_FILE% >nul 2>&1
+    if %errorlevel% equ 0 echo   ✅ Cohere API - Enhanced language generation
+    findstr /C:"OPENAI_API_KEY" %ENV_FILE% >nul 2>&1
+    if %errorlevel% equ 0 echo   ✅ OpenAI API - GPT model access
+    findstr /C:"HUGGINGFACE_HUB_TOKEN" %ENV_FILE% >nul 2>&1
+    if %errorlevel% equ 0 echo   ✅ Hugging Face Hub - Model repository access
+) else (
+    echo ⏭️  No API keys configured. Using offline-only features.
+)
+
+echo.
 echo ✅ Setup complete!
 echo 🚀 Starting PDF LLM Trainer...
 echo.
+
+REM Load environment variables if .env exists
+if exist "%ENV_FILE%" (
+    for /f "usebackq tokens=1,2 delims==" %%a in ("%ENV_FILE%") do (
+        if not "%%a"=="" if not "%%a:~0,1%"=="#" set %%a=%%b
+    )
+)
 
 REM Change to LLMmodel directory and run
 cd LLMmodel
