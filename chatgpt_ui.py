@@ -52,19 +52,21 @@ class ChatGPTUI:
         y = (self.root.winfo_screenheight() // 2) - (750 // 2)
         self.root.geometry(f"1000x750+{x}+{y}")
         
-        # ChatGPT-like color scheme
+        # Clean and Minimalist color scheme (Slate/Zinc)
         self.colors = {
-            'bg': '#212121',           # Dark background
-            'sidebar': '#171717',      # Darker sidebar
-            'chat_bg': '#212121',      # Chat background
-            'user_bubble': '#2f2f2f',  # User message background
-            'ai_bubble': '#212121',    # AI message background (same as chat)
-            'text': '#ececec',         # Primary text
-            'text_dim': '#9ca3af',     # Dimmed text
-            'input_bg': '#2f2f2f',     # Input background
-            'button': '#10a37f',       # Green button (ChatGPT style)
-            'button_hover': '#0d8a6b', # Button hover
-            'border': '#4d4d4f',       # Subtle borders
+            'bg': '#09090b',           # Zinc 950
+            'sidebar': '#18181b',      # Zinc 900
+            'chat_bg': '#09090b',      # Zinc 950
+            'user_bubble': '#27272a',  # Zinc 800
+            'ai_bubble': '#09090b',    # Matches background
+            'text': '#fafafa',         # Zinc 50
+            'text_dim': '#a1a1aa',     # Zinc 400
+            'input_bg': '#18181b',     # Zinc 900
+            'button': '#fafafa',       # White button
+            'button_text': '#09090b',  # Dark text
+            'button_hover': '#e4e4e7', # Zinc 200
+            'border': '#27272a',       # Zinc 800
+            'highlight': '#3b82f6',    # Blue accent
         }
         
         self.root.configure(bg=self.colors['bg'])
@@ -91,22 +93,21 @@ class ChatGPTUI:
         sidebar_content = tk.Frame(sidebar, bg=self.colors['sidebar'])
         sidebar_content.pack(fill='both', expand=True, padx=12, pady=16)
         
-        # New Chat button
+        # New Chat button - Modern pill style
         new_chat_btn = tk.Button(
             sidebar_content,
-            text="+ New chat",
-            bg=self.colors['sidebar'],
-            fg=self.colors['text'],
-            font=('Segoe UI', 11),
+            text="+ New Chat",
+            bg=self.colors['button'],
+            fg=self.colors['button_text'],
+            font=('Segoe UI Semibold', 10),
             relief='flat',
             bd=0,
-            padx=12,
+            padx=16,
             pady=8,
-            anchor='w',
             cursor='hand2',
             command=self.new_chat
         )
-        new_chat_btn.pack(fill='x', pady=(0, 16))
+        new_chat_btn.pack(fill='x', pady=(0, 24))
         
         # Mode selection
         mode_label = tk.Label(
@@ -166,21 +167,38 @@ class ChatGPTUI:
         )
         pdf_label.pack(fill='x', pady=(0, 8))
         
-        # Upload PDF button
+        # Action Buttons
         self.upload_btn = tk.Button(
             sidebar_content,
-            text="📁 Upload PDF",
-            bg=self.colors['input_bg'],
+            text="📁 PDF",
+            bg=self.colors['sidebar'],
             fg=self.colors['text'],
             font=('Segoe UI', 10),
             relief='flat',
             bd=0,
             padx=12,
             pady=8,
+            anchor='w',
             cursor='hand2',
             command=self.upload_pdf
         )
-        self.upload_btn.pack(fill='x', pady=(0, 8))
+        self.upload_btn.pack(fill='x', pady=(0, 4))
+        
+        self.upload_dir_btn = tk.Button(
+            sidebar_content,
+            text="📂 Folder",
+            bg=self.colors['sidebar'],
+            fg=self.colors['text'],
+            font=('Segoe UI', 10),
+            relief='flat',
+            bd=0,
+            padx=12,
+            pady=8,
+            anchor='w',
+            cursor='hand2',
+            command=self.upload_directory
+        )
+        self.upload_dir_btn.pack(fill='x', pady=(0, 20))
         
         # PDF status
         self.pdf_status = tk.Label(
@@ -420,10 +438,10 @@ class ChatGPTUI:
         # Send button
         self.send_btn = tk.Button(
             input_frame,
-            text="➤",
+            text="↑",
             bg=self.colors['button'],
-            fg='white',
-            font=('Segoe UI', 12, 'bold'),
+            fg=self.colors['button_text'],
+            font=('Segoe UI', 14, 'bold'),
             relief='flat',
             bd=0,
             width=3,
@@ -442,12 +460,12 @@ class ChatGPTUI:
     
     def add_welcome_message(self):
         """Add welcome message to chat."""
-        welcome_text = """Hello! I'm your AI assistant. I can help you with:
+        welcome_text = """Hello! I'm your Offline AI assistant powered by Ollama.
+I can help you with:
 
-• General questions and conversations
-• PDF document analysis and Q&A
-• Information lookup and explanations
-• Creative writing and brainstorming
+• General questions and conversations (Offline)
+• PDF document/folder analysis and Q&A
+• Voice interactions and more!
 
 How can I assist you today?"""
         
@@ -671,7 +689,7 @@ How can I assist you today?"""
                     
                     self.root.after(0, lambda: self.pdf_status.configure(
                         text=f"✓ {pdf_name}"
-                    ))
+                     ))
                     self.root.after(0, lambda: self.status_label.configure(text="Ready"))
                     self.root.after(0, lambda: self.upload_btn.configure(
                         text="📁 Upload PDF", state='normal'
@@ -682,13 +700,11 @@ How can I assist you today?"""
                         "assistant",
                         f"Successfully loaded {pdf_name}. You can now switch to PDF Chat mode to ask questions about the document."
                     ))
-                    
                 else:
                     self.root.after(0, lambda: self.status_label.configure(text="Error"))
                     self.root.after(0, lambda: self.upload_btn.configure(
                         text="📁 Upload PDF", state='normal'
                     ))
-                    
             except Exception as e:
                 self.root.after(0, lambda: self.status_label.configure(text="Error"))
                 self.root.after(0, lambda: self.upload_btn.configure(
@@ -696,6 +712,39 @@ How can I assist you today?"""
                 ))
         
         threading.Thread(target=process_pdf, daemon=True).start()
+
+    def upload_directory(self):
+        """Handle Directory upload."""
+        dir_path = filedialog.askdirectory(title="Select Folder with PDF Documents")
+        
+        if not dir_path:
+            return
+        
+        self.status_label.configure(text="Processing Directory...")
+        self.upload_dir_btn.configure(text="Processing...", state='disabled')
+        
+        def process_dir():
+            try:
+                success = self.chatbot.load_directory(dir_path)
+                if success:
+                    success_rag = self.chatbot.create_text_chunks() and self.chatbot.create_vector_database()
+                    
+                    if success_rag:
+                        dir_name = Path(dir_path).name
+                        self.root.after(0, lambda: self.pdf_status.configure(text=f"✓ Folder: {dir_name}"))
+                        self.root.after(0, lambda: self.status_label.configure(text="Ready"))
+                        self.root.after(0, lambda: self.upload_dir_btn.configure(text="📂 Upload Folder", state='normal'))
+                        self.root.after(0, lambda: self.add_message("assistant", f"Successfully loaded folder '{dir_name}'. You can now chat with all PDFs in this folder!"))
+                    else:
+                        self.root.after(0, lambda: self.status_label.configure(text="RAG Error"))
+                else:
+                    self.root.after(0, lambda: self.status_label.configure(text="Error loading dir"))
+            except Exception as e:
+                logger.error(f"Error in UI dir upload: {e}")
+                self.root.after(0, lambda: self.status_label.configure(text="Error"))
+                self.root.after(0, lambda: self.upload_dir_btn.configure(text="📂 Upload Folder", state='normal'))
+        
+        threading.Thread(target=process_dir, daemon=True).start()
     
     def send_message(self):
         """Send message and get response."""

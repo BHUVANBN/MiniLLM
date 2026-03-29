@@ -14,14 +14,14 @@ from typing import List, Tuple, Optional
 from getpass import getpass
 
 import numpy as np
-import cohere
 from pypdf import PdfReader
 from tqdm import tqdm
 from dotenv import load_dotenv
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
-from langchain_community.vectorstores import FAISS
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain_ollama import OllamaLLM
 
 # Load environment variables
 load_dotenv()
@@ -37,10 +37,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Suppress HTTP request logs from cohere and other libraries
+# Suppress HTTP request logs
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
-logging.getLogger("cohere").setLevel(logging.WARNING)
 
 
 class UniversalChatbot:
@@ -51,72 +50,58 @@ class UniversalChatbot:
     def __init__(self):
         """Initialize the Universal Chatbot with default configurations."""
         self.current_pdf_path = None
-        self.pdf_texts = []
-        self.character_split_texts = []
+        self.documents = [] # List of Document objects
+        self.character_split_docs = [] # List of Document objects
         self.embedding_function = None
         self.vector_db = None
-        self.cohere_client = None
         self.pdf_loaded = False
         
         # Configuration
         self.chunk_size = 1000
-        self.chunk_overlap = 20
-        self.embedding_model = "sentence-transformers/all-MiniLM-l6-v2"
-        self.cohere_model = "command-r-08-2024"
+        self.chunk_overlap = 200
+        self.embedding_model = "all-MiniLM-L6-v2"
+        self.ollama_model = "llama3.2:latest" # Default Ollama model
+        self.vector_db_path = "./data/vector_store"
+        
+        # Local LLM and Embeddings
+        self.llm = None
         
         logger.info("Universal Chatbot initialized")
     
-    def setup_api_keys(self) -> bool:
+    def setup_local_models(self, model_name: str = "llama3.2:latest") -> bool:
         """
-        Setup API keys for HuggingFace and Cohere.
+        Setup local models (Ollama and SentenceTransformers).
         
         Returns:
             bool: True if setup successful, False otherwise
         """
         try:
-            # HuggingFace API Key
-            hf_api_key = os.getenv("HUGGINGFACEHUB_API_TOKEN")
-            if not hf_api_key:
-                print("Please enter your HuggingFace API key:")
-                hf_api_key = getpass("HuggingFace API Key: ")
-                os.environ["HUGGINGFACEHUB_API_TOKEN"] = hf_api_key
+            self.ollama_model = model_name
+            logger.info(f"Setting up local Ollama LLM with model: {self.ollama_model}")
             
-            # Cohere API Key
-            cohere_api_key = os.getenv("COHERE_API_KEY")
-            if not cohere_api_key:
-                print("Please enter your Cohere API key:")
-                cohere_api_key = getpass("Cohere API Key: ")
+            # Initialize Ollama
+            self.llm = OllamaLLM(model=self.ollama_model)
             
-            # Initialize Cohere client
-            self.cohere_client = cohere.Client(cohere_api_key)
+            # Initialize embedding function (local)
+            logger.info(f"Initializing local embeddings with model: {self.embedding_model}")
+            self.embedding_function = HuggingFaceEmbeddings(
+                model_name=self.embedding_model,
+                model_kwargs={'device': 'cpu'}
+            )
             
-            # Initialize embedding function
-            try:
-                self.embedding_function = HuggingFaceInferenceAPIEmbeddings(
-                    api_key=hf_api_key,
-                    model_name=self.embedding_model
-                )
-                logger.info(f"Embedding function initialized with model: {self.embedding_model}")
-            except Exception as e:
-                logger.error(f"Failed to initialize HuggingFace Inference API: {e}")
-                logger.info("Trying alternative local embedding approach...")
-                try:
-                    from langchain_community.embeddings import HuggingFaceEmbeddings
-                    self.embedding_function = HuggingFaceEmbeddings(
-                        model_name=self.embedding_model,
-                        model_kwargs={'device': 'cpu'}
-                    )
-                    logger.info(f"Local embedding function initialized with model: {self.embedding_model}")
-                except Exception as e2:
-                    logger.error(f"Failed to initialize local embeddings: {e2}")
-                    return False
-            
-            logger.info("API keys setup successfully")
+            logger.info("Local models setup successfully")
             return True
             
         except Exception as e:
-            logger.error(f"Error setting up API keys: {e}")
+            logger.error(f"Error setting up local models: {e}")
             return False
+
+    def setup_api_keys(self) -> bool:
+        """
+        Setup API keys for Cohere (optional fallback).
+        """
+        # This can be kept as an optional fallback
+        return self.setup_local_models() 
     
     def load_pdf(self, pdf_path: str) -> bool:
         """
@@ -136,29 +121,68 @@ class UniversalChatbot:
             self.current_pdf_path = pdf_path
             logger.info(f"Loading PDF: {pdf_path}")
             
-            reader = PdfReader(pdf_path)
-            self.pdf_texts = [p.extract_text().strip() for p in reader.pages]
+            from langchain_community.document_loaders import PyPDFLoader
+            loader = PyPDFLoader(pdf_path)
+            self.documents = loader.load()
             
-            # Filter out empty strings
-            self.pdf_texts = [text for text in self.pdf_texts if text]
+            # Add metadata
+            for doc in self.documents:
+                doc.metadata['source_file'] = Path(pdf_path).name
+                doc.metadata['file_type'] = 'pdf'
             
-            logger.info(f"Successfully loaded {len(self.pdf_texts)} pages from PDF")
+            logger.info(f"Successfully loaded {len(self.documents)} pages from PDF")
             return True
             
         except Exception as e:
             logger.error(f"Error loading PDF: {e}")
             return False
+
+    def load_directory(self, directory_path: str) -> bool:
+        """
+        Process all PDF files in a directory.
+        """
+        try:
+            pdf_dir = Path(directory_path)
+            if not pdf_dir.exists() or not pdf_dir.is_dir():
+                logger.error(f"Directory not found: {directory_path}")
+                return False
+                
+            pdf_files = list(pdf_dir.glob("**/*.pdf"))
+            logger.info(f"Found {len(pdf_files)} PDF files to process")
+            
+            self.documents = []
+            from langchain_community.document_loaders import PyPDFLoader
+            
+            for pdf_file in pdf_files:
+                try:
+                    loader = PyPDFLoader(str(pdf_file))
+                    docs = loader.load()
+                    # Add metadata
+                    for doc in docs:
+                        doc.metadata['source_file'] = pdf_file.name
+                        doc.metadata['file_type'] = 'pdf'
+                    self.documents.extend(docs)
+                except Exception as e:
+                    logger.warning(f"Failed to load {pdf_file}: {e}")
+            
+            self.current_pdf_path = directory_path
+            logger.info(f"Successfully loaded {len(self.documents)} pages from directory")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error loading directory: {e}")
+            return False
     
     def create_text_chunks(self) -> bool:
         """
-        Split PDF text into chunks for processing.
+        Split PDF documents into chunks for processing.
         
         Returns:
             bool: True if successful, False otherwise
         """
         try:
-            if not self.pdf_texts:
-                logger.error("No PDF texts loaded. Please load PDF first.")
+            if not self.documents:
+                logger.error("No documents loaded. Please load PDF/directory first.")
                 return False
             
             logger.info("Creating text chunks...")
@@ -169,9 +193,9 @@ class UniversalChatbot:
                 chunk_overlap=self.chunk_overlap
             )
             
-            self.character_split_texts = character_splitter.split_text('\n\n'.join(self.pdf_texts))
+            self.character_split_docs = character_splitter.split_documents(self.documents)
             
-            logger.info(f"Created {len(self.character_split_texts)} text chunks")
+            logger.info(f"Created {len(self.character_split_docs)} text chunks")
             return True
             
         except Exception as e:
@@ -180,59 +204,31 @@ class UniversalChatbot:
     
     def create_vector_database(self) -> bool:
         """
-        Create FAISS vector database from text chunks.
-        
-        Returns:
-            bool: True if successful, False otherwise
+        Create ChromaDB vector database from text chunks.
         """
         try:
-            if not self.character_split_texts:
-                logger.error("No text chunks available. Please create chunks first.")
+            if not self.character_split_docs:
+                logger.error("No text chunks available.")
                 return False
             
             if not self.embedding_function:
-                logger.error("Embedding function not initialized. Please setup API keys first.")
+                logger.error("Embedding function not initialized.")
                 return False
             
-            logger.info(f"Creating vector database from {len(self.character_split_texts)} text chunks...")
+            logger.info(f"Creating vector database from {len(self.character_split_docs)} text chunks...")
             
-            # Filter out empty chunks
-            valid_chunks = [chunk for chunk in self.character_split_texts if chunk.strip()]
+            # Create vector database using Chroma
+            if not os.path.exists(os.path.dirname(self.vector_db_path)):
+                os.makedirs(os.path.dirname(self.vector_db_path), exist_ok=True)
+
+            self.vector_db = Chroma.from_documents(
+                documents=self.character_split_docs,
+                embedding=self.embedding_function,
+                persist_directory=self.vector_db_path
+            )
             
-            if not valid_chunks:
-                logger.error("No valid text chunks found after filtering.")
-                return False
-            
-            logger.info(f"Using {len(valid_chunks)} valid chunks for vector database...")
-            
-            # Test embedding function with a small sample first
-            try:
-                logger.info("Testing embedding function...")
-                test_embedding = self.embedding_function.embed_query("test")
-                logger.info(f"Embedding test successful, dimension: {len(test_embedding)}")
-            except Exception as embed_error:
-                logger.error(f"Embedding function test failed: {embed_error}")
-                logger.info("Switching to local embedding fallback...")
-                try:
-                    from langchain_community.embeddings import HuggingFaceEmbeddings
-                    self.embedding_function = HuggingFaceEmbeddings(
-                        model_name=self.embedding_model,
-                        model_kwargs={'device': 'cpu'}
-                    )
-                    logger.info("Local embedding function initialized successfully")
-                    # Test the local embedding
-                    test_embedding = self.embedding_function.embed_query("test")
-                    logger.info(f"Local embedding test successful, dimension: {len(test_embedding)}")
-                except Exception as local_error:
-                    logger.error(f"Local embedding fallback failed: {local_error}")
-                    return False
-            
-            # Create vector database with error handling
-            logger.info("Creating FAISS vector database...")
-            self.vector_db = FAISS.from_texts(valid_chunks, self.embedding_function)
             self.pdf_loaded = True
-            
-            logger.info(f"Vector database created successfully with {self.vector_db.index.ntotal} documents")
+            logger.info("Vector database created successfully")
             return True
             
         except Exception as e:
@@ -263,8 +259,8 @@ class UniversalChatbot:
     def clear_pdf_context(self):
         """Clear the current PDF context."""
         self.current_pdf_path = None
-        self.pdf_texts = []
-        self.character_split_texts = []
+        self.documents = []
+        self.character_split_docs = []
         self.vector_db = None
         self.pdf_loaded = False
         logger.info("PDF context cleared")
@@ -293,42 +289,21 @@ class UniversalChatbot:
                 return "No relevant information found for your query in the PDF.", ""
             
             # Extract content from retrieved documents
-            information = "\n\n".join([doc.page_content for doc in retrieved_documents])
+            context = "\n\n".join([doc.page_content for doc in retrieved_documents])
             
             # Create system prompt for PDF context
-            system_prompt = f"""You are a helpful AI assistant that answers questions based on the content of a PDF document.
-The PDF file is: {Path(self.current_pdf_path).name if self.current_pdf_path else 'Unknown'}
+            prompt = f"""You are a helpful AI assistant that answers questions based on the content of a PDF document.
+Document Information:
+{context}
 
-You will be shown the user's question and relevant information from the document.
-Answer the user's question using only the information provided from the document.
-If the information is not sufficient to answer the question, say so clearly."""
+Question: {query}
+
+Answer the user's question using ONLY the information provided above. If the information is not sufficient to answer the question, say so clearly."""
             
-            # Try different models in order of preference (updated for current availability)
-            models_to_try = ["command-r-08-2024", "command-r-03-2024", "command"]
+            # Generate response using Ollama
+            response = self.llm.invoke(prompt)
             
-            for model in models_to_try:
-                try:
-                    # Generate response using Cohere
-                    response = self.cohere_client.chat(
-                        model=model,
-                        message=f"Question: {query}\n\nDocument Information: {information}",
-                        preamble=system_prompt
-                    )
-                    
-                    # If successful, update the default model and break
-                    self.cohere_model = model
-                    break
-                    
-                except Exception as model_error:
-                    logger.warning(f"Model {model} failed: {model_error}")
-                    if model == models_to_try[-1]:  # Last model
-                        return "All Cohere models are currently unavailable. Please try again later.", ""
-                    continue
-            
-            # Combine source texts
-            source_text = "\n\n".join([doc.page_content for doc in retrieved_documents])
-            
-            return response.text, source_text
+            return response, context
             
         except Exception as e:
             logger.error(f"Error in PDF chat: {e}")
@@ -336,48 +311,18 @@ If the information is not sufficient to answer the question, say so clearly."""
     
     def chat_general(self, query: str) -> str:
         """
-        General chat without PDF context.
-        
-        Args:
-            query (str): User's question
-            
-        Returns:
-            str: AI response
+        General chat using Ollama.
         """
         try:
-            if not self.cohere_client:
-                return "Cohere client not initialized. Please setup API keys first."
+            if not self.llm:
+                return "Model not initialized."
             
             if not query.strip():
                 return "Please enter a valid question."
             
-            # Create system prompt for general chat
-            system_prompt = """You are a helpful, knowledgeable, and friendly AI assistant. 
-You can help with a wide variety of topics including answering questions, providing explanations, 
-helping with tasks, and having conversations. Be informative, accurate, and helpful in your responses."""
-            
-            # Try different models in order of preference (updated for current availability)
-            models_to_try = ["command-r-08-2024", "command-r-03-2024", "command"]
-            
-            for model in models_to_try:
-                try:
-                    # Generate response using Cohere
-                    response = self.cohere_client.chat(
-                        model=model,
-                        message=query,
-                        preamble=system_prompt
-                    )
-                    
-                    # If successful, update the default model
-                    self.cohere_model = model
-                    return response.text
-                    
-                except Exception as model_error:
-                    logger.warning(f"Model {model} failed: {model_error}")
-                    continue
-            
-            # If all models fail
-            return "All Cohere models are currently unavailable. Please try again later."
+            # Generate response using Ollama
+            response = self.llm.invoke(query)
+            return response
             
         except Exception as e:
             logger.error(f"Error in general chat: {e}")
@@ -385,19 +330,16 @@ helping with tasks, and having conversations. Be informative, accurate, and help
     
     def get_pdf_info(self) -> str:
         """
-        Get information about the currently loaded PDF.
-        
-        Returns:
-            str: PDF information
+        Get information about the currently loaded content.
         """
         if not self.pdf_loaded:
-            return "No PDF currently loaded."
+            return "No content currently loaded."
         
         return f"""
-📄 Current PDF: {Path(self.current_pdf_path).name if self.current_pdf_path else 'Unknown'}
-📊 Pages: {len(self.pdf_texts)}
-📝 Text Chunks: {len(self.character_split_texts)}
-🔍 Vector Database: {self.vector_db.index.ntotal if self.vector_db else 0} documents
+📑 Source: {Path(self.current_pdf_path).name if self.current_pdf_path else 'Unknown'}
+📊 Pages: {len(self.documents)}
+📝 Text Chunks: {len(self.character_split_docs)}
+🔍 Vector Database: ChromaDB (Offline)
 """
     
     def initialize_apis(self) -> bool:

@@ -21,27 +21,38 @@ class WebApp:
         self.chat_mode = "general"
         
         # Initialize chatbot
-        success = self.chatbot.setup_api_keys()
+        success = self.chatbot.setup_local_models()
         if not success:
-            print("❌ Failed to initialize API keys. Check your .env file.")
+            print("❌ Failed to initialize local models. Ensure Ollama is running.")
     
-    def upload_pdf(self, file):
-        """Handle PDF upload."""
-        if file is None:
-            return "❌ No file selected", "No PDF loaded"
+    def upload_pdf(self, file_path):
+        """Handle PDF or Directory upload."""
+        if file_path is None:
+            return "❌ No file/folder selected", "No content loaded"
         
         try:
-            # Process the uploaded PDF
-            success = self.chatbot.process_pdf(file.name)
+            # Check if it's a directory or a file
+            if os.path.isdir(file_path):
+                success = self.chatbot.load_directory(file_path)
+                prefix = "Folder"
+            else:
+                success = self.chatbot.process_pdf(file_path)
+                prefix = "PDF"
             
             if success:
-                filename = Path(file.name).name
-                return f"✅ Successfully loaded: {filename}", f"📄 {filename}"
+                # Need to trigger RAG index creation if not already part of load_directory/process_pdf
+                # In current implementation, process_pdf does it all, but load_directory doesn't.
+                if os.path.isdir(file_path):
+                    self.chatbot.create_text_chunks()
+                    self.chatbot.create_vector_database()
+                
+                name = Path(file_path).name
+                return f"✅ Successfully loaded {prefix}: {name}", f"📄 {name}"
             else:
-                return "❌ Failed to process PDF", "No PDF loaded"
+                return f"❌ Failed to process {prefix}", "No content loaded"
                 
         except Exception as e:
-            return f"❌ Error: {str(e)}", "No PDF loaded"
+            return f"❌ Error: {str(e)}", "No content loaded"
     
     def set_mode(self, mode):
         """Set chat mode."""
@@ -116,16 +127,15 @@ class WebApp:
                     )
                     
                     gr.Markdown("### 📄 Document Upload")
-                    # PDF upload
-                    pdf_file = gr.File(
-                        label="",
-                        file_types=[".pdf"],
-                        type="filepath",
-                        show_label=False
+                    # PDF/Folder path upload
+                    content_path = gr.Textbox(
+                        label="File/Folder Path",
+                        placeholder="Enter absolute path to PDF or Folder",
+                        show_label=True
                     )
                     
                     # Upload button
-                    upload_btn = gr.Button("📁 Process PDF", variant="secondary", size="lg")
+                    upload_btn = gr.Button("🚀 Process Content", variant="secondary", size="lg")
                     
                     # PDF status
                     pdf_status = gr.Textbox(
@@ -177,7 +187,7 @@ class WebApp:
             # Event handlers
             upload_btn.click(
                 fn=self.upload_pdf,
-                inputs=[pdf_file],
+                inputs=[content_path],
                 outputs=[status_msg, pdf_status]
             )
             
@@ -207,7 +217,7 @@ class WebApp:
             # Welcome message
             interface.load(
                 fn=lambda: [
-                    {"role": "assistant", "content": "Hello! I'm your AI assistant. Upload a PDF to chat about it, or just have a general conversation. How can I help you today?"}
+                    {"role": "assistant", "content": "Hello! I'm your Offline AI assistant powered by Ollama. Upload a PDF or provide a folder path to chat about its content. How can I help you today?"}
                 ],
                 outputs=[chatbot_interface]
             )
